@@ -10,6 +10,7 @@ namespace AditiKraft.Aspire.Hosting.HttpsGateway;
 public static class HttpsGatewayExtensions
 {
     private static readonly TimeSpan _appHostShutdownTimeout = TimeSpan.FromSeconds(5);
+    private const string ServiceDiscoveryHttpsScheme = "https";
 
     public static async Task<HttpsGatewayOptions> AddHttpsGatewayAsync(
         this IDistributedApplicationBuilder builder,
@@ -78,5 +79,30 @@ public static class HttpsGatewayExtensions
         });
 
         return builder;
+    }
+
+    public static IResourceBuilder<TDestination> WithHttpsGatewayReference<TDestination, TSource>(
+        this IResourceBuilder<TDestination> builder,
+        IResourceBuilder<TSource> source,
+        HttpsGatewayOptions options,
+        string subdomain,
+        string path = "",
+        string? serviceName = null)
+        where TDestination : IResourceWithEnvironment
+        where TSource : IResource
+    {
+        ArgumentNullException.ThrowIfNull(builder);
+        ArgumentNullException.ThrowIfNull(source);
+        ArgumentNullException.ThrowIfNull(options);
+        ArgumentException.ThrowIfNullOrWhiteSpace(subdomain);
+
+        string resolvedServiceName = string.IsNullOrWhiteSpace(serviceName)
+            ? source.Resource.Name
+            : serviceName;
+        string publicUrl = options.PublicUrl(subdomain, path);
+
+        return builder
+            .WithEnvironment($"services__{resolvedServiceName}__{ServiceDiscoveryHttpsScheme}__0", publicUrl)
+            .WithReferenceRelationship(source.Resource);
     }
 }

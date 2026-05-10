@@ -52,7 +52,7 @@ builder.AddProject<Projects.Sample_Web>("webfrontend")
     .WithExternalHttpEndpoints()
     .WithHttpHealthCheck("/health")
     .WithHttpsGatewayUrl(gatewayOptions, "ui")
-    .WithReference(apiService)
+    .WithHttpsGatewayReference(apiService, gatewayOptions, "backend")
     .WaitFor(apiService);
 
 builder.Build().Run();
