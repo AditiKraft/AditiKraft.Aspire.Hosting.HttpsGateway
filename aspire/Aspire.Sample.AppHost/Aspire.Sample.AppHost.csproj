@@ -1,4 +1,4 @@
-<Project Sdk="Aspire.AppHost.Sdk/13.1.0">
+<Project Sdk="Aspire.AppHost.Sdk/13.3.0">
 
   <PropertyGroup>
     <OutputType>Exe</OutputType>
@@ -12,7 +12,7 @@
   <ItemGroup>
     <ProjectReference Include="..\..\sample\Sample.ApiService\Sample.ApiService.csproj" />
     <ProjectReference Include="..\..\sample\Sample.Web\Sample.Web.csproj" />
-    <ProjectReference Include="..\..\src\AditiKraft.Aspire.Hosting.HttpsGateway.csproj" />
+    <ProjectReference Include="..\..\src\AditiKraft.Aspire.Hosting.HttpsGateway.csproj" IsAspireProjectResource="false" />
   </ItemGroup>
 
 </Project>

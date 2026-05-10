@@ -26,8 +26,8 @@ HttpsGatewayOptions gatewayOptions = await builder.AddHttpsGatewayAsync(options 
 
     options.Routes = new Dictionary<string, string>
     {
-        ["HttpsGateway.Sample.Backend"] = "https://localhost:7593",
-        ["HttpsGateway.Sample.UI"] = "https://localhost:7013",
+        ["backend"] = "https://localhost:7593",
+        ["ui"] = "https://localhost:7013",
     };
 
     // Example: expose a backend under the same UI origin so browser calls
@@ -44,13 +44,13 @@ HttpsGatewayOptions gatewayOptions = await builder.AddHttpsGatewayAsync(options 
 
 
 var apiService = builder.AddProject<Projects.Sample_ApiService>("apiservice")
-    .WithHttpsGatewayUrl(gatewayOptions, "HttpsGateway.Sample.Backend")
+    .WithHttpsGatewayUrl(gatewayOptions, "backend")
     .WithHttpHealthCheck("/health");
 
 builder.AddProject<Projects.Sample_Web>("webfrontend")
     .WithExternalHttpEndpoints()
     .WithHttpHealthCheck("/health")
-    .WithHttpsGatewayUrl(gatewayOptions, "HttpsGateway.Sample.UI")
+    .WithHttpsGatewayUrl(gatewayOptions, "ui")
     .WithReference(apiService)
     .WaitFor(apiService);
 

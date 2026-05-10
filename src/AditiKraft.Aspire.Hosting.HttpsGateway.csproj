@@ -18,7 +18,7 @@
   </ItemGroup>
 
   <ItemGroup>
-    <PackageReference Include="Aspire.Hosting" Version="13.2.0" />
+    <PackageReference Include="Aspire.Hosting" Version="13.3.0" />
     <PackageReference Include="AWSSDK.S3" Version="4.0.23" />
     <PackageReference Include="Certes" Version="3.0.4" />
     <PackageReference Include="Yarp.ReverseProxy" Version="2.3.0" />
