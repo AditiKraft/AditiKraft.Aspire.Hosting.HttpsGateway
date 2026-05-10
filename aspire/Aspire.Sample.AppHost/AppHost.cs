@@ -26,6 +26,7 @@ HttpsGatewayOptions gatewayOptions = await builder.AddHttpsGatewayAsync(options 
 
     options.Routes = new Dictionary<string, string>
     {
+        ["aspire"] = "https://localhost:17026",
         ["backend"] = "https://localhost:7593",
         ["ui"] = "https://localhost:7013",
     };
