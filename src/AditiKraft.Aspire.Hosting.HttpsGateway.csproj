@@ -1,0 +1,27 @@
+<Project Sdk="Microsoft.NET.Sdk">
+
+  <PropertyGroup>
+    <TargetFramework>net10.0</TargetFramework>
+    <ImplicitUsings>enable</ImplicitUsings>
+    <Nullable>enable</Nullable>
+    <IsPackable>true</IsPackable>
+    <IsAspireHostingPackage>true</IsAspireHostingPackage>
+    <PackageId>AditiKraft.Aspire.Hosting.HttpsGateway</PackageId>
+    <Title>AditiKraft Aspire HTTPS Gateway</Title>
+    <Description>Local Aspire AppHost HTTPS gateway with YARP host/path routing, ACME DNS-01 certificate management, and optional S3-compatible certificate caching.</Description>
+    <Authors>AditiKraft</Authors>
+    <PackageTags>aspire;yarp;https;gateway;reverse-proxy;acme;letsencrypt;cloudflare;s3;r2</PackageTags>
+  </PropertyGroup>
+
+  <ItemGroup>
+    <FrameworkReference Include="Microsoft.AspNetCore.App" />
+  </ItemGroup>
+
+  <ItemGroup>
+    <PackageReference Include="Aspire.Hosting" Version="13.2.0" />
+    <PackageReference Include="AWSSDK.S3" Version="4.0.23" />
+    <PackageReference Include="Certes" Version="3.0.4" />
+    <PackageReference Include="Yarp.ReverseProxy" Version="2.3.0" />
+  </ItemGroup>
+
+</Project>

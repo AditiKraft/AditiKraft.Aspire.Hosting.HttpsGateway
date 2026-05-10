@@ -1,0 +1,13 @@
+<Solution>
+  <Folder Name="/aspire/">
+    <Project Path="aspire/Aspire.Sample.AppHost/Aspire.Sample.AppHost.csproj" />
+    <Project Path="aspire/Aspire.Sample.ServiceDefaults/Aspire.Sample.ServiceDefaults.csproj" />
+  </Folder>
+  <Folder Name="/sample/">
+    <Project Path="sample/Sample.ApiService/Sample.ApiService.csproj" />
+    <Project Path="sample/Sample.Web/Sample.Web.csproj" />
+  </Folder>
+  <Folder Name="/src/">
+    <Project Path="src/AditiKraft.Aspire.Hosting.HttpsGateway.csproj" />
+  </Folder>
+</Solution>
