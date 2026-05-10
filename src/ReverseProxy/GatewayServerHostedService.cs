@@ -6,6 +6,7 @@ using Microsoft.AspNetCore.Hosting;
 using Microsoft.AspNetCore.Server.Kestrel.Core;
 using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.Hosting;
+using Microsoft.Extensions.Logging;
 
 namespace AditiKraft.Aspire.Hosting.HttpsGateway.ReverseProxy;
 
@@ -41,6 +42,9 @@ internal sealed class GatewayServerHostedService(HttpsGatewayOptions options, IH
         builder.Services.AddSingleton(options);
         builder.Services.AddHttpForwarder();
         builder.Services.Configure<HostOptions>(options => { options.ShutdownTimeout = _gatewayShutdownTimeout; });
+        builder.Logging.AddFilter(
+            "Yarp.ReverseProxy.Forwarder.HttpForwarder",
+            options.EnableVerboseProxyLogging ? LogLevel.Information : LogLevel.Error);
 
         builder.WebHost.ConfigureKestrel(kestrel =>
         {

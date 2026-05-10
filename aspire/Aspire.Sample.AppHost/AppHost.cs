@@ -12,6 +12,7 @@ HttpsGatewayOptions gatewayOptions = await builder.AddHttpsGatewayAsync(options 
     options.CloudflareApiToken = builder.Configuration["Gateway:CloudflareApiToken"]!;
     options.UseStaging = builder.Configuration.GetValue<bool>("Gateway:UseStaging");
     options.Port = 443;
+    options.EnableVerboseProxyLogging = builder.Configuration.GetValue<bool>("Gateway:EnableVerboseProxyLogging");
 
     IConfigurationSection remoteCertificateStore = builder.Configuration.GetSection("Gateway:RemoteCertificateStore");
     options.RemoteCertificateStore.Enabled = remoteCertificateStore.GetValue<bool>("Enabled");

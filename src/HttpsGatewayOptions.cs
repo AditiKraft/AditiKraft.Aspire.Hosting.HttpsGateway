@@ -8,6 +8,7 @@ public sealed class HttpsGatewayOptions
     public bool UseStaging { get; set; } = true;
     public int Port { get; set; } = 443;
     public string DashboardSubdomain { get; set; } = "aspire";
+    public bool EnableVerboseProxyLogging { get; set; }
 
     public string CertStoreDirectory { get; set; } = Path.Combine(
         Environment.GetFolderPath(Environment.SpecialFolder.LocalApplicationData),
