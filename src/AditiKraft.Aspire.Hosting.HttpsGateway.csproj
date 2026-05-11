@@ -15,7 +15,7 @@
     <Copyright>Copyright © 2026 Aditi Kraft Private Limited</Copyright>
     <PackageLicenseExpression>MIT</PackageLicenseExpression>
     <PackageLicenseFile>LICENSE</PackageLicenseFile>
-    <PackageReadmeFile>PACKAGE.md</PackageReadmeFile>
+    <PackageReadmeFile>README.md</PackageReadmeFile>
     <PackageIcon>icon.png</PackageIcon>
     <PackageTags>aspire;yarp;https;gateway;reverse-proxy;acme;letsencrypt;cloudflare;s3;r2</PackageTags>
     <RepositoryUrl>https://github.com/AditiKraft/AditiKraft.Aspire.Hosting.HttpsGateway</RepositoryUrl>
@@ -40,8 +40,8 @@
 
   <ItemGroup>
     <None Include="buildTransitive\AditiKraft.Aspire.Hosting.HttpsGateway.props" Pack="true" PackagePath="buildTransitive\" />
-    <None Include="LICENSE" Pack="true" PackagePath="\" />
-    <None Include="PACKAGE.md" Pack="true" PackagePath="\" />
+    <None Include="..\LICENSE" Pack="true" PackagePath="\" />
+    <None Include="..\README.md" Pack="true" PackagePath="\" />
     <None Include="icon.png" Pack="true" PackagePath="\" />
   </ItemGroup>
 
