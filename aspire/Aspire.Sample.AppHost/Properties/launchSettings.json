@@ -5,7 +5,7 @@
       "commandName": "Project",
       "dotnetRunMessages": true,
       "launchBrowser": true,
-      "applicationUrl": "https://aditikraft_aspire_hosting_httpsgateway_sample.dev.localhost:17026;http://aditikraft_aspire_hosting_httpsgateway_sample.dev.localhost:15141",
+      "applicationUrl": "https://localhost:17026;http://localhost:15141",
       "environmentVariables": {
         "ASPNETCORE_ENVIRONMENT": "Development",
         "DOTNET_ENVIRONMENT": "Development",
@@ -18,7 +18,7 @@
       "commandName": "Project",
       "dotnetRunMessages": true,
       "launchBrowser": true,
-      "applicationUrl": "http://aditikraft_aspire_hosting_httpsgateway_sample.dev.localhost:15141",
+      "applicationUrl": "http://localhost:15141",
       "environmentVariables": {
         "ASPNETCORE_ENVIRONMENT": "Development",
         "DOTNET_ENVIRONMENT": "Development",
