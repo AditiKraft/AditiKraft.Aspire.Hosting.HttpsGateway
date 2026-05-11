@@ -1,6 +1,5 @@
 using System.Linq;
 using Nuke.Common;
-using Nuke.Common.Git;
 using Nuke.Common.IO;
 using Nuke.Common.ProjectModel;
 using Nuke.Common.Tools.DotNet;
@@ -25,9 +24,8 @@ class Build : NukeBuild
 
 
     [Parameter("Force release behavior for tag builds")] readonly bool ReleaseBuild;
-    [GitRepository] readonly GitRepository Repository;
     [Parameter("NuGet API Key for publishing templates")] private readonly string NuGetPAT;
-    [Parameter("Template version (default: 0.0.2)")] private readonly string PackageVersion = "0.0.10";
+    [Parameter("Package version (default: 0.0.10)")] private readonly string PackageVersion = "0.0.10";
 
     private AbsolutePath BackendProjectPath =>
         AspireDirectory / "aspire.Sample.AppHost" / "aspire.Sample.AppHost.csproj";
