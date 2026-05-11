@@ -6,11 +6,25 @@
     <Nullable>enable</Nullable>
     <IsPackable>true</IsPackable>
     <IsAspireHostingPackage>true</IsAspireHostingPackage>
+    <GenerateDocumentationFile>true</GenerateDocumentationFile>
     <PackageId>AditiKraft.Aspire.Hosting.HttpsGateway</PackageId>
     <Title>AditiKraft Aspire HTTPS Gateway</Title>
     <Description>Local Aspire AppHost HTTPS gateway with YARP host/path routing, ACME DNS-01 certificate management, and optional S3-compatible certificate caching.</Description>
-    <Authors>AditiKraft</Authors>
+    <Authors>Aditi Kraft Private Limited</Authors>
+    <Company>Aditi Kraft Private Limited</Company>
+    <Copyright>Copyright © 2026 Aditi Kraft Private Limited</Copyright>
+    <PackageLicenseExpression>MIT</PackageLicenseExpression>
+    <PackageLicenseFile>LICENSE</PackageLicenseFile>
+    <PackageReadmeFile>PACKAGE.md</PackageReadmeFile>
+    <PackageIcon>icon.png</PackageIcon>
     <PackageTags>aspire;yarp;https;gateway;reverse-proxy;acme;letsencrypt;cloudflare;s3;r2</PackageTags>
+    <RepositoryUrl>https://github.com/AditiKraft/AditiKraft.Aspire.Hosting.HttpsGateway</RepositoryUrl>
+    <RepositoryType>git</RepositoryType>
+    <PackageProjectUrl>https://github.com/AditiKraft/AditiKraft.Aspire.Hosting.HttpsGateway</PackageProjectUrl>
+    <PublishRepositoryUrl>true</PublishRepositoryUrl>
+    <EmbedUntrackedSources>true</EmbedUntrackedSources>
+    <IncludeSymbols>true</IncludeSymbols>
+    <SymbolPackageFormat>snupkg</SymbolPackageFormat>
   </PropertyGroup>
 
   <ItemGroup>
@@ -26,6 +40,9 @@
 
   <ItemGroup>
     <None Include="buildTransitive\AditiKraft.Aspire.Hosting.HttpsGateway.props" Pack="true" PackagePath="buildTransitive\" />
+    <None Include="LICENSE" Pack="true" PackagePath="\" />
+    <None Include="PACKAGE.md" Pack="true" PackagePath="\" />
+    <None Include="icon.png" Pack="true" PackagePath="\" />
   </ItemGroup>
 
 </Project>

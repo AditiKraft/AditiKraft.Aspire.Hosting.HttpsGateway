@@ -71,12 +71,10 @@ class Build : NukeBuild
             DotNetTasks.DotNetPack(s => s
                 .SetConfiguration(Configuration.Release.ToString())
                 .SetProject(BrightLightSharedPath)
-                .SetPackageProjectUrl(RepositoryUrl)
-                .SetRepositoryUrl(RepositoryUrl)
                 .SetVersion(PackageVersion)
-                .SetProperty("InformationalVersion", PackageVersion)
-                .SetAuthors("Bipin Paul")
                 .SetOutputDirectory(PackageOutputDirectory)
+                .EnableIncludeSymbols()
+                .SetSymbolPackageFormat("snupkg")
             );
         });
 
