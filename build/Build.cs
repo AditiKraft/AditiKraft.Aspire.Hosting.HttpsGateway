@@ -19,7 +19,7 @@ class Build : NukeBuild
     AbsolutePath ArtifactsDirectory => RootDirectory / "artifacts";
     AbsolutePath PackageOutputDirectory => ArtifactsDirectory / "Packages";
 
-    AbsolutePath BrightLightSharedPath =>
+    AbsolutePath PackageProjectPath =>
         SourceDirectory / "AditiKraft.Aspire.Hosting.HttpsGateway.csproj";
 
 
@@ -27,8 +27,8 @@ class Build : NukeBuild
     [Parameter("NuGet API Key for publishing templates")] private readonly string NuGetPAT;
     [Parameter("Package version (default: 0.0.10)")] private readonly string PackageVersion = "0.0.10";
 
-    private AbsolutePath BackendProjectPath =>
-        AspireDirectory / "aspire.Sample.AppHost" / "aspire.Sample.AppHost.csproj";
+    private AbsolutePath SampleProjectPath =>
+        AspireDirectory / "Aspire.Sample.AppHost" / "Aspire.Sample.AppHost.csproj";
 
     #region NuGet
 
@@ -55,7 +55,7 @@ class Build : NukeBuild
         .Executes(() =>
         {
             DotNetTasks.DotNetBuild(s => s
-                .SetProjectFile(BackendProjectPath)
+                .SetProjectFile(SampleProjectPath)
                 .SetConfiguration(Configuration)
                 .SetProperty("Version", PackageVersion)
                 .SetProperty("AssemblyVersion", PackageVersion)
@@ -68,7 +68,7 @@ class Build : NukeBuild
         {
             DotNetTasks.DotNetPack(s => s
                 .SetConfiguration(Configuration.Release.ToString())
-                .SetProject(BrightLightSharedPath)
+                .SetProject(PackageProjectPath)
                 .SetVersion(PackageVersion)
                 .SetOutputDirectory(PackageOutputDirectory)
                 .EnableIncludeSymbols()
