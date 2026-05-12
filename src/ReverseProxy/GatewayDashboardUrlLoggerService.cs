@@ -8,29 +8,63 @@ internal sealed class GatewayDashboardUrlLoggerService(
     HttpsGatewayOptions options,
     IServiceProvider services,
     IHostApplicationLifetime applicationLifetime)
-    : BackgroundService
+    : IHostedLifecycleService
 {
-    protected override async Task ExecuteAsync(CancellationToken stoppingToken)
+    private Task? _logTask;
+
+    public Task StartingAsync(CancellationToken cancellationToken)
     {
-        var started = new TaskCompletionSource(TaskCreationOptions.RunContinuationsAsynchronously);
+        EnsureLoggingStarted();
+        return Task.CompletedTask;
+    }
 
-        await using CancellationTokenRegistration _ = stoppingToken.Register(() => started.TrySetCanceled(stoppingToken));
-        await using CancellationTokenRegistration __ =
-            applicationLifetime.ApplicationStarted.Register(() => started.TrySetResult());
+    public Task StartAsync(CancellationToken cancellationToken)
+    {
+        EnsureLoggingStarted();
+        return Task.CompletedTask;
+    }
 
-        await started.Task;
-        await WaitForDashboardEndpointAsync(stoppingToken);
-        await Task.Delay(TimeSpan.FromMilliseconds(250), stoppingToken);
+    public Task StartedAsync(CancellationToken cancellationToken) =>
+        Task.CompletedTask;
 
-        string dashboardUrl = options.PublicUrl(options.DashboardSubdomain);
-        string? dashboardToken = GetDashboardToken();
+    public Task StoppingAsync(CancellationToken cancellationToken) =>
+        Task.CompletedTask;
 
-        if (!string.IsNullOrWhiteSpace(dashboardToken))
+    public Task StopAsync(CancellationToken cancellationToken) =>
+        Task.CompletedTask;
+
+    public Task StoppedAsync(CancellationToken cancellationToken) =>
+        Task.CompletedTask;
+
+    private void EnsureLoggingStarted()
+    {
+        _logTask ??= LogDashboardUrlWhenAvailableAsync(applicationLifetime.ApplicationStopping);
+    }
+
+    private async Task LogDashboardUrlWhenAvailableAsync(CancellationToken stoppingToken)
+    {
+        try
         {
-            dashboardUrl = $"{dashboardUrl}/login?t={dashboardToken}";
-        }
+            await WaitForDashboardEndpointAsync(stoppingToken);
+            await Task.Delay(TimeSpan.FromMilliseconds(250), stoppingToken);
 
-        Console.WriteLine($"[Gateway] Dashboard also available via gateway at {dashboardUrl}");
+            string dashboardUrl = options.PublicUrl(options.DashboardSubdomain);
+            string? dashboardToken = GetDashboardToken();
+
+            if (!string.IsNullOrWhiteSpace(dashboardToken))
+            {
+                dashboardUrl = $"{dashboardUrl}/login?t={dashboardToken}";
+            }
+
+            Console.WriteLine($"[Gateway] Dashboard also available via gateway at {dashboardUrl}");
+        }
+        catch (OperationCanceledException) when (stoppingToken.IsCancellationRequested)
+        {
+        }
+        catch (Exception ex)
+        {
+            Console.WriteLine($"[Gateway] Failed to log dashboard gateway URL: {ex.Message}");
+        }
     }
 
     private string? GetDashboardToken()
