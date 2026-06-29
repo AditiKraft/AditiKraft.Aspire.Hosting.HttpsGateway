@@ -158,6 +158,62 @@ public static class HttpsGatewayExtensions
             .WithReferenceRelationship(source.Resource);
     }
 
+    /// <summary>
+    /// Mounts <paramref name="backend"/> under <paramref name="pathPrefix"/> on the host resource's
+    /// subdomain, so browser calls to <c>https://{subdomain}{pathPrefix}/*</c> are forwarded to the
+    /// backend (same-origin, no CORS). The path prefix is stripped before forwarding. The target is
+    /// derived from the backend's own endpoint — no manual URL. Subdomain defaults to the host
+    /// resource name.
+    /// </summary>
+    public static IResourceBuilder<THost> WithHttpsGatewayPath<THost, TBackend>(
+        this IResourceBuilder<THost> builder,
+        HttpsGatewayOptions options,
+        string pathPrefix,
+        IResourceBuilder<TBackend> backend,
+        string? subdomain = null,
+        string endpointName = DefaultGatewayEndpointName)
+        where THost : IResource
+        where TBackend : IResourceWithEndpoints
+    {
+        ArgumentNullException.ThrowIfNull(builder);
+        ArgumentNullException.ThrowIfNull(options);
+        ArgumentNullException.ThrowIfNull(backend);
+        ArgumentException.ThrowIfNullOrWhiteSpace(pathPrefix);
+
+        string resolvedSubdomain = string.IsNullOrWhiteSpace(subdomain) ? builder.Resource.Name : subdomain;
+
+        EndpointReference endpoint = backend.GetEndpoint(endpointName);
+        builder.ApplicationBuilder.Eventing.Subscribe<ResourceEndpointsAllocatedEvent>(
+            backend.Resource,
+            (_, _) =>
+            {
+                if (!endpoint.IsAllocated)
+                {
+                    Console.WriteLine(
+                        $"[Gateway] Backend '{backend.Resource.Name}' has no allocated '{endpointName}' endpoint; " +
+                        $"no path route registered for {resolvedSubdomain}.{options.Domain}{pathPrefix}.");
+                    return Task.CompletedTask;
+                }
+
+                // Rebuild the inner map as a fresh dictionary so the request-time reader in
+                // GatewayMiddleware never enumerates a map that is being mutated.
+                lock (options)
+                {
+                    Dictionary<string, string> map =
+                        options.PathRoutes.TryGetValue(resolvedSubdomain, out Dictionary<string, string>? existing)
+                            ? new Dictionary<string, string>(existing)
+                            : new Dictionary<string, string>();
+
+                    map[pathPrefix] = endpoint.Url;
+                    options.PathRoutes[resolvedSubdomain] = map;
+                }
+
+                return Task.CompletedTask;
+            });
+
+        return builder;
+    }
+
     private static void WireDashboardRoute(IDistributedApplicationBuilder builder, HttpsGatewayOptions options)
     {
         if (!options.ExposeDashboard)

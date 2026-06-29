@@ -119,26 +119,63 @@ You normally do **not** maintain a `Routes` dictionary — `WithHttpsGatewayUrl`
 
 Each key becomes `{key}.{Domain}` (e.g. `legacy.local.example.com`).
 
-### Path Routes
+### Path Routes (single origin, no CORS)
 
-Mount a backend under another origin's path to avoid CORS. This is code-only config (a nested dictionary), so set it in the `configure` lambda:
+Mount a backend under another resource's path so the browser sees one origin. Use
+`WithHttpsGatewayPath` to serve the UI at the host root and the API under `/api` on the
+**same** host — the API target is derived from its endpoint, so there is no literal URL:
 
 ```csharp
-HttpsGatewayOptions gateway = builder.AddHttpsGateway(
-    builder.Configuration.GetSection("Gateway"),
-    options =>
-    {
-        options.PathRoutes = new()
-        {
-            ["webfrontend"] = new()
-            {
-                ["/api"] = "https://localhost:5001",
-            },
-        };
-    });
+using AditiKraft.Aspire.Hosting.HttpsGateway;
+using Microsoft.Extensions.Configuration;
+
+var builder = DistributedApplication.CreateBuilder(args);
+
+HttpsGatewayOptions gateway = builder.AddHttpsGateway(builder.Configuration.GetSection("Gateway"));
+
+// Backend API — reached only under the UI's /api path (no subdomain of its own).
+var api = builder.AddProject<Projects.ApiService>("apiservice")
+    .WithHttpHealthCheck("/health");
+
+// UI at the host root; API mounted under /api on the same origin.
+builder.AddProject<Projects.Web>("webfrontend")
+    .WithExternalHttpEndpoints()
+    .WithHttpHealthCheck("/health")
+    .WithHttpsGatewayUrl(gateway)                  // https://webfrontend.local.example.com        → UI ("/")
+    .WithHttpsGatewayPath(gateway, "/api", api)    // https://webfrontend.local.example.com/api/*   → API
+    .WaitFor(api);
+
+builder.Build().Run();
 ```
 
-Now `webfrontend.local.example.com/api/*` proxies to the API — the browser sees a same-origin request.
+| Request | Goes to |
+|---|---|
+| `https://webfrontend.local.example.com/` | UI |
+| `https://webfrontend.local.example.com/api/weatherforecast` | API (forwarded as `/weatherforecast`) |
+
+Path routes are matched **before** host routes (longest prefix first), and the prefix is
+**stripped** before forwarding — so the API receives `/weatherforecast`, not `/api/weatherforecast`,
+and its controllers stay at their normal paths. For the single origin to matter, the UI's
+browser code should call the relative path (`/api/...`).
+
+> [!TIP]
+> To also reach the API on its own subdomain, add `.WithHttpsGatewayUrl(gateway)` to the
+> `api` resource — you then get both `https://apiservice.local.example.com` and the `/api` mount.
+
+#### Static path routes
+
+For a target that is **not** an Aspire resource, set `PathRoutes` directly (keyed by subdomain,
+then path prefix). It binds from config or the `configure` lambda:
+
+```json
+{
+  "Gateway": {
+    "PathRoutes": {
+      "webfrontend": { "/legacy": "https://192.168.1.50:8443" }
+    }
+  }
+}
+```
 
 ## Dashboard
 
@@ -168,8 +205,8 @@ There are two ways to configure the gateway. Both are fully supported, so pick w
 ### Bind from configuration (recommended)
 
 Pass the `Gateway` config section. Everything — including the nested
-`RemoteCertificateStore` and the `Routes` dictionary — is bound for you. Use the
-optional `configure` lambda for code-only values such as `PathRoutes`:
+`RemoteCertificateStore` and the `Routes`/`PathRoutes` dictionaries — is bound for you.
+Use the optional `configure` lambda to override or add values in code:
 
 ```csharp
 HttpsGatewayOptions gateway = builder.AddHttpsGateway(builder.Configuration.GetSection("Gateway"));
@@ -270,6 +307,7 @@ Object key resolution: `{prefix}/{domain}/{certFileName}` — e.g. `certificates
 - `AddHttpsGateway(configure)` — configure every option in code.
 - `WithHttpsGatewayUrl(gateway, subdomain = null, endpointName = "https", path = "")` — publishes the resource through the gateway. Subdomain defaults to the resource name; the route target is derived from the named endpoint.
 - `WithHttpsGatewayReference(source, gateway, subdomain = null, path = "", serviceName = null)` — injects the source resource's gateway URL into the destination as a service-discovery entry. Subdomain and service name default to the source resource name.
+- `WithHttpsGatewayPath(gateway, pathPrefix, backend, subdomain = null, endpointName = "https")` — mounts `backend` under `pathPrefix` on the host resource's subdomain (same-origin, no CORS). The prefix is stripped before forwarding and the target is derived from the backend's endpoint. Subdomain defaults to the host resource name.
 
 ## Security Notes
 
