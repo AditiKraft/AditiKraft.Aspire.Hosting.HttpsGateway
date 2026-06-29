@@ -8,6 +8,13 @@ public sealed class HttpsGatewayOptions
     public bool UseStaging { get; set; } = true;
     public int Port { get; set; } = 443;
     public string DashboardSubdomain { get; set; } = "aspire";
+
+    /// <summary>
+    /// When true (default), the Aspire dashboard is exposed through the gateway under
+    /// <see cref="DashboardSubdomain"/>, with its route auto-wired from the AppHost's own URL.
+    /// </summary>
+    public bool ExposeDashboard { get; set; } = true;
+
     public bool EnableVerboseProxyLogging { get; set; }
 
     public string CertStoreDirectory { get; set; } = Path.Combine(

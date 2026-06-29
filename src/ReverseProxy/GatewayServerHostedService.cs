@@ -10,7 +10,10 @@ using Microsoft.Extensions.Logging;
 
 namespace AditiKraft.Aspire.Hosting.HttpsGateway.ReverseProxy;
 
-internal sealed class GatewayServerHostedService(HttpsGatewayOptions options, IHostEnvironment environment)
+internal sealed class GatewayServerHostedService(
+    HttpsGatewayOptions options,
+    IHostEnvironment environment,
+    CertificateManager certManager)
     : IHostedLifecycleService, IAsyncDisposable
 {
     private static readonly TimeSpan _gatewayShutdownTimeout = TimeSpan.FromSeconds(2);
@@ -64,6 +67,10 @@ internal sealed class GatewayServerHostedService(HttpsGatewayOptions options, IH
 
         try
         {
+            // Ensure the certificate exists on disk before Kestrel binds. Moved here from
+            // AddHttpsGateway so registration stays synchronous and uses the real DI services.
+            await certManager.EnsureCertificateAsync();
+
             string certPath = options.CertFullPath();
             _serverCertificate = LoadServerCertificate(certPath);
 

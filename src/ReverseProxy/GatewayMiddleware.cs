@@ -1,3 +1,4 @@
+using System.Collections.Concurrent;
 using System.Net.Security;
 using AditiKraft.Aspire.Hosting.HttpsGateway;
 using Microsoft.AspNetCore.Http;
@@ -10,9 +11,14 @@ internal sealed class GatewayMiddleware
 {
     private readonly IHttpForwarder _forwarder;
     private readonly ILogger<GatewayMiddleware> _logger;
+    private readonly HttpsGatewayOptions _options;
     private readonly bool _verboseLogging;
-    private readonly Dictionary<string, List<PathRoute>> _pathRoutes;
-    private readonly Dictionary<string, (string Destination, HttpMessageInvoker Client)> _routes;
+
+    // Routes are read live from the options because some are registered after the gateway has
+    // started (resource endpoints resolve via AfterEndpointsAllocatedEvent). Clients are created
+    // lazily per destination and cached.
+    private readonly ConcurrentDictionary<string, HttpMessageInvoker> _clients =
+        new(StringComparer.OrdinalIgnoreCase);
 
     public GatewayMiddleware(
         RequestDelegate next,
@@ -22,28 +28,8 @@ internal sealed class GatewayMiddleware
     {
         _forwarder = forwarder;
         _logger = logger;
+        _options = options;
         _verboseLogging = options.EnableVerboseProxyLogging;
-
-        _routes =
-            new Dictionary<string, (string Destination, HttpMessageInvoker Client)>(StringComparer.OrdinalIgnoreCase);
-        foreach ((string subdomain, string destination) in options.Routes)
-        {
-            string host = $"{subdomain}.{options.Domain}";
-            _routes[host] = (destination, CreateClient());
-        }
-
-        _pathRoutes = new Dictionary<string, List<PathRoute>>(StringComparer.OrdinalIgnoreCase);
-        foreach ((string subdomain, Dictionary<string, string> routes) in options.PathRoutes)
-        {
-            string host = $"{subdomain}.{options.Domain}";
-            _pathRoutes[host] = routes
-                .Select(route => new PathRoute(
-                    NormalizePathPrefix(route.Key),
-                    route.Value,
-                    CreateClient()))
-                .OrderByDescending(route => route.PathPrefix.Value?.Length ?? 0)
-                .ToList();
-        }
     }
 
     public async Task InvokeAsync(HttpContext context)
@@ -59,32 +45,32 @@ internal sealed class GatewayMiddleware
                 context.Request.Path);
         }
 
-        if (TryGetPathRoute(host, context.Request.Path, out PathRoute pathRoute, out PathString remainingPath))
+        if (TryGetPathRoute(host, context.Request.Path, out string pathDestination, out PathString remainingPath))
         {
             PathString forwardPath = NormalizeForwardPath(remainingPath);
 
             if (_verboseLogging)
             {
                 _logger.LogInformation(
-                    "Gateway matched path route {Host}{PathPrefix} -> {Destination}{ForwardPath}",
+                    "Gateway matched path route {Host}{Path} -> {Destination}{ForwardPath}",
                     host,
-                    pathRoute.PathPrefix,
-                    pathRoute.Destination,
+                    context.Request.Path,
+                    pathDestination,
                     forwardPath);
             }
 
-            await ForwardAsync(context, pathRoute.Destination, pathRoute.Client, forwardPath);
+            await ForwardAsync(context, pathDestination, ClientFor(pathDestination), forwardPath);
             return;
         }
 
-        if (_routes.TryGetValue(host, out (string Destination, HttpMessageInvoker Client) route))
+        if (TryGetHostRoute(host, out string destination))
         {
             if (_verboseLogging)
             {
-                _logger.LogInformation("Gateway matched route {Host} -> {Destination}", host, route.Destination);
+                _logger.LogInformation("Gateway matched route {Host} -> {Destination}", host, destination);
             }
 
-            await ForwardAsync(context, route.Destination, route.Client);
+            await ForwardAsync(context, destination, ClientFor(destination));
             return;
         }
 
@@ -93,28 +79,57 @@ internal sealed class GatewayMiddleware
         await context.Response.WriteAsync($"No gateway route for host '{host}'.");
     }
 
+    private HttpMessageInvoker ClientFor(string destination) =>
+        _clients.GetOrAdd(destination, static _ => CreateClient());
+
+    private bool TryGetHostRoute(string host, out string destination)
+    {
+        foreach ((string subdomain, string routeDestination) in _options.Routes)
+        {
+            if (string.Equals($"{subdomain}.{_options.Domain}", host, StringComparison.OrdinalIgnoreCase))
+            {
+                destination = routeDestination;
+                return true;
+            }
+        }
+
+        destination = string.Empty;
+        return false;
+    }
+
     private bool TryGetPathRoute(
         string host,
         PathString requestPath,
-        out PathRoute route,
+        out string destination,
         out PathString remainingPath)
     {
-        if (_pathRoutes.TryGetValue(host, out List<PathRoute>? hostPathRoutes))
+        string subdomain = SubdomainForHost(host);
+
+        if (_options.PathRoutes.TryGetValue(subdomain, out Dictionary<string, string>? routes))
         {
-            foreach (PathRoute pathRoute in hostPathRoutes)
+            foreach ((string prefix, string routeDestination) in routes.OrderByDescending(route => route.Key.Length))
             {
-                if (requestPath.StartsWithSegments(pathRoute.PathPrefix, out PathString candidateRemainingPath))
+                PathString pathPrefix = NormalizePathPrefix(prefix);
+                if (requestPath.StartsWithSegments(pathPrefix, out PathString candidateRemainingPath))
                 {
-                    route = pathRoute;
+                    destination = routeDestination;
                     remainingPath = candidateRemainingPath;
                     return true;
                 }
             }
         }
 
-        route = default!;
+        destination = string.Empty;
         remainingPath = default;
         return false;
+    }
+
+    private string SubdomainForHost(string host)
+    {
+        string suffix = $".{_options.Domain}";
+        return host.EndsWith(suffix, StringComparison.OrdinalIgnoreCase)
+            ? host[..^suffix.Length]
+            : host;
     }
 
     private async Task ForwardAsync(
@@ -214,9 +229,4 @@ internal sealed class GatewayMiddleware
 
         return new HttpMessageInvoker(handler);
     }
-
-    private sealed record PathRoute(
-        PathString PathPrefix,
-        string Destination,
-        HttpMessageInvoker Client);
 }
