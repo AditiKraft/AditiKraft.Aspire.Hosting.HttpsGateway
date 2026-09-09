@@ -32,11 +32,11 @@
   </ItemGroup>
 
   <ItemGroup>
-    <PackageReference Include="Aspire.Hosting" Version="13.3.0" />
-    <PackageReference Include="AWSSDK.S3" Version="4.0.23" />
+    <PackageReference Include="Aspire.Hosting" Version="13.5.3" />
+    <PackageReference Include="AWSSDK.S3" Version="4.0.103" />
     <PackageReference Include="Certes" Version="3.0.4" />
     <PackageReference Include="Yarp.ReverseProxy" Version="2.3.0" />
-    <PackageReference Include="Microsoft.SourceLink.GitHub" Version="10.0.203" PrivateAssets="All" />
+    <PackageReference Include="Microsoft.SourceLink.GitHub" Version="10.0.401" PrivateAssets="All" />
   </ItemGroup>
 
   <ItemGroup>
