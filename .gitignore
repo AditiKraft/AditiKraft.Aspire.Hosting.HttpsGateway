@@ -459,3 +459,6 @@ $RECYCLE.BIN/
 ##
 TestTemplate_*/
 TestKrafterApp/
+
+# Fallout build temp files (logs, build graph)
+.fallout/temp/
