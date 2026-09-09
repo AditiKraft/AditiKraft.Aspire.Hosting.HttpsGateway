@@ -6,6 +6,13 @@ Local HTTPS gateway for .NET Aspire AppHost with YARP reverse proxy, automated A
 
 HttpsGateway gives every Aspire resource a real `https://<name>.yourdomain.com` URL on your machine — wildcard TLS, same-origin path mounting (no CORS), and the Aspire dashboard itself — without editing `hosts`, minting dev certs, or hand-mapping ports.
 
+## Requirements
+
+| Requirement | Version |
+|---|---|
+| .NET SDK | 10.x |
+| Aspire | 13.5+ |
+
 ## Features
 
 | Feature | Description |

@@ -123,7 +123,7 @@
         },
         "PackageVersion": {
           "type": "string",
-          "description": "Package version (default: 0.0.10)"
+          "description": "Package version (default: 0.1.0)"
         },
         "ReleaseBuild": {
           "type": "boolean",
