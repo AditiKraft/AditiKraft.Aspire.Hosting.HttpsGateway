@@ -91,6 +91,14 @@ builder.Build().Run();
 
 That is enough for the normal case. The Aspire dashboard is also published — open `https://aspire.local.example.com`.
 
+### Localhost and VM network access
+
+The gateway listens on all network interfaces by default, including loopback. The same gateway port accepts connections from the local machine and from a VM's host; no `ListenAddress` setting is required. For example, if the gateway uses port `9999` inside a Windows VM, forward Mac port `9999` to Windows port `9999` in VMPal.
+
+Continue using the gateway's configured hostname in the browser so certificate validation and host-based routing work. When that hostname resolves to `127.0.0.1` on the Mac, the forwarded Mac port carries the connection to the Windows gateway.
+
+Dashboard frontend bindings such as `https://0.0.0.0:17285` and `https://[::]:17285` are converted to `localhost` when the automatic dashboard proxy destination is created. The scheme, port, and path are preserved.
+
 ## What Happens
 
 1. **Registration** — `AddHttpsGateway` binds config, registers the gateway services, and auto-wires the dashboard route from the AppHost's own URL.
@@ -317,6 +325,8 @@ Object key resolution: `{prefix}/{domain}/{certFileName}` — e.g. `certificates
 - `WithHttpsGatewayPath(gateway, pathPrefix, backend, subdomain = null, endpointName = "https")` — mounts `backend` under `pathPrefix` on the host resource's subdomain (same-origin, no CORS). The prefix is stripped before forwarding and the target is derived from the backend's endpoint. Subdomain defaults to the host resource name.
 
 ## Security Notes
+
+- The gateway listens on all network interfaces by default. Limit inbound access with your firewall and use authentication in the applications exposed through it.
 
 - Do not commit `Gateway:CloudflareApiToken` or S3 credentials — keep them in user-secrets.
 - Use a Cloudflare token scoped to just the zone's DNS edit permission.

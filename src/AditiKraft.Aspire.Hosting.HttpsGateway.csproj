@@ -33,6 +33,8 @@
 
   <ItemGroup>
     <PackageReference Include="Aspire.Hosting" Version="13.5.3" />
+    <!-- Keep Aspire's transitive MessagePack dependency on the patched 2.5.x release. -->
+    <PackageReference Include="MessagePack" Version="2.5.303" />
     <PackageReference Include="AWSSDK.S3" Version="4.0.103" />
     <PackageReference Include="Certes" Version="3.0.4" />
     <PackageReference Include="Yarp.ReverseProxy" Version="2.3.0" />
