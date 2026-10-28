@@ -61,9 +61,10 @@ internal sealed class GatewayServerHostedService(
             return;
         }
 
+        string listenScope = options.ListenOnAllInterfaces ? "all network interfaces" : "localhost only";
         string routeHosts =
             string.Join(", ", options.Routes.Keys.Select(subdomain => $"{subdomain}.{options.Domain}"));
-        Console.WriteLine($"[Gateway] Starting on https://localhost:{options.Port} for hosts: {routeHosts}");
+        Console.WriteLine($"[Gateway] Starting on HTTPS port {options.Port} ({listenScope}) for hosts: {routeHosts}");
 
         try
         {
@@ -89,11 +90,20 @@ internal sealed class GatewayServerHostedService(
 
             builder.WebHost.ConfigureKestrel(kestrel =>
             {
-                kestrel.ListenLocalhost(options.Port, listenOptions =>
+                void ConfigureHttps(ListenOptions listenOptions)
                 {
                     listenOptions.Protocols = HttpProtocols.Http1AndHttp2;
                     listenOptions.UseHttps(httpsOptions => { httpsOptions.ServerCertificate = _serverCertificate; });
-                });
+                }
+
+                if (options.ListenOnAllInterfaces)
+                {
+                    kestrel.ListenAnyIP(options.Port, ConfigureHttps);
+                }
+                else
+                {
+                    kestrel.ListenLocalhost(options.Port, ConfigureHttps);
+                }
             });
 
             _app = builder.Build();
@@ -104,11 +114,11 @@ internal sealed class GatewayServerHostedService(
         }
         catch (Exception ex)
         {
-            Console.WriteLine($"[Gateway] Failed to start on https://localhost:{options.Port}: {ex.Message}");
+            Console.WriteLine($"[Gateway] Failed to start on HTTPS port {options.Port} ({listenScope}): {ex.Message}");
             throw;
         }
 
-        Console.WriteLine($"[Gateway] Listening on https://localhost:{options.Port} for hosts: {routeHosts}");
+        Console.WriteLine($"[Gateway] Listening on HTTPS port {options.Port} ({listenScope}) for hosts: {routeHosts}");
     }
 
     public async Task StopAsync(CancellationToken cancellationToken)

@@ -244,7 +244,16 @@ public static class HttpsGatewayExtensions
         }
 
         string[] candidates = urls.Split(';', StringSplitOptions.RemoveEmptyEntries | StringSplitOptions.TrimEntries);
-        return Array.Find(candidates, url => url.StartsWith("https://", StringComparison.OrdinalIgnoreCase))
+        string? dashboardUrl = Array.Find(candidates, url => url.StartsWith("https://", StringComparison.OrdinalIgnoreCase))
             ?? (candidates.Length > 0 ? candidates[0] : null);
+
+        // Wildcard bindings accept connections but cannot be used as proxy destinations.
+        if (Uri.TryCreate(dashboardUrl, UriKind.Absolute, out Uri? dashboardUri)
+            && dashboardUri.Host is "0.0.0.0" or "[::]")
+        {
+            return new UriBuilder(dashboardUri) { Host = "localhost" }.Uri.AbsoluteUri;
+        }
+
+        return dashboardUrl;
     }
 }
