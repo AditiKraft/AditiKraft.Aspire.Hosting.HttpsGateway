@@ -7,6 +7,11 @@ public sealed class HttpsGatewayOptions
     public string CloudflareApiToken { get; set; } = "";
     public bool UseStaging { get; set; } = true;
     public int Port { get; set; } = 443;
+
+    /// <summary>
+    /// Accept connections on all network interfaces when true. Defaults to false (localhost only).
+    /// </summary>
+    public bool ListenOnAllInterfaces { get; set; }
     public string DashboardSubdomain { get; set; } = "aspire";
 
     /// <summary>

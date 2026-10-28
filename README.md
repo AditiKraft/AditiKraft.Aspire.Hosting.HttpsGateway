@@ -93,7 +93,24 @@ That is enough for the normal case. The Aspire dashboard is also published — o
 
 ### Localhost and VM network access
 
-The gateway listens on all network interfaces by default, including loopback. The same gateway port accepts connections from the local machine and from a VM's host; no `ListenAddress` setting is required. For example, if the gateway uses port `9999` inside a Windows VM, forward Mac port `9999` to Windows port `9999` in VMPal.
+The gateway listens only on localhost by default, preserving existing behavior. To allow connections from a VM's host, enable `ListenOnAllInterfaces` in configuration:
+
+```json
+"Gateway": {
+  "Port": 9999,
+  "ListenOnAllInterfaces": true
+}
+```
+
+You can also enable it directly in AppHost code. The configure callback runs after configuration binding, so code overrides the configuration value:
+
+```csharp
+HttpsGatewayOptions gateway = builder.AddHttpsGateway(
+    builder.Configuration.GetSection("Gateway"),
+    options => options.ListenOnAllInterfaces = true);
+```
+
+When enabled, the same gateway port accepts both localhost and network connections. If the gateway uses port `9999` inside a Windows VM, forward Mac port `9999` to Windows port `9999` in VMPal.
 
 Continue using the gateway's configured hostname in the browser so certificate validation and host-based routing work. When that hostname resolves to `127.0.0.1` on the Mac, the forwarded Mac port carries the connection to the Windows gateway.
 
@@ -289,6 +306,7 @@ section (keep the credentials in user-secrets):
 | `CloudflareApiToken` | `string` | `""` | Cloudflare API token with DNS edit permissions |
 | `UseStaging` | `bool` | `true` | Use Let's Encrypt staging (set `false` for production) |
 | `Port` | `int` | `443` | Gateway listen port |
+| `ListenOnAllInterfaces` | `bool` | `false` | Enable network connections as well as localhost; omitted or false keeps localhost-only access |
 | `DashboardSubdomain` | `string` | `"aspire"` | Subdomain for the Aspire dashboard |
 | `ExposeDashboard` | `bool` | `true` | Publish the Aspire dashboard through the gateway |
 | `EnableVerboseProxyLogging` | `bool` | `false` | Enable detailed YARP proxy forwarding logs |
@@ -326,7 +344,7 @@ Object key resolution: `{prefix}/{domain}/{certFileName}` — e.g. `certificates
 
 ## Security Notes
 
-- The gateway listens on all network interfaces by default. Limit inbound access with your firewall and use authentication in the applications exposed through it.
+- Enabling `ListenOnAllInterfaces` exposes the gateway on the network. Limit inbound access with your firewall and use authentication in the applications exposed through it.
 
 - Do not commit `Gateway:CloudflareApiToken` or S3 credentials — keep them in user-secrets.
 - Use a Cloudflare token scoped to just the zone's DNS edit permission.
