@@ -16,7 +16,7 @@ public sealed class HttpsGatewayOptions
 
     /// <summary>
     /// When true (default), the Aspire dashboard is exposed through the gateway under
-    /// <see cref="DashboardSubdomain"/>, with its route auto-wired from the AppHost's own URL.
+    /// <see cref="DashboardSubdomain"/>, using the dashboard's allocated endpoint.
     /// </summary>
     public bool ExposeDashboard { get; set; } = true;
 

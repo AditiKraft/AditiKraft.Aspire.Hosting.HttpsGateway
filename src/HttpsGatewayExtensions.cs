@@ -1,9 +1,11 @@
-using Aspire.Hosting;
-using Aspire.Hosting.ApplicationModel;
 using AditiKraft.Aspire.Hosting.HttpsGateway.Certificates;
 using AditiKraft.Aspire.Hosting.HttpsGateway.ReverseProxy;
+using Aspire.Hosting;
+using Aspire.Hosting.ApplicationModel;
+using Aspire.Hosting.Lifecycle;
 using Microsoft.Extensions.Configuration;
 using Microsoft.Extensions.DependencyInjection;
+using Microsoft.Extensions.DependencyInjection.Extensions;
 using Microsoft.Extensions.Hosting;
 
 namespace AditiKraft.Aspire.Hosting.HttpsGateway;
@@ -54,7 +56,10 @@ public static class HttpsGatewayExtensions
         builder.Services.AddSingleton<CertificateManager>();
         builder.Services.AddHostedService<CertificateRenewalService>();
         builder.Services.AddHostedService<GatewayServerHostedService>();
-        builder.Services.AddHostedService<GatewayDashboardUrlLoggerService>();
+        builder.Services.TryAddSingleton<GatewayDashboardRouteService>();
+        builder.Services.TryAddEnumerable(
+            ServiceDescriptor.Singleton<IDistributedApplicationEventingSubscriber, GatewayDashboardRouteService>(
+                services => services.GetRequiredService<GatewayDashboardRouteService>()));
         builder.Services.Configure<HostOptions>(hostOptions =>
         {
             hostOptions.ShutdownTimeout = _appHostShutdownTimeout;
@@ -71,8 +76,6 @@ public static class HttpsGatewayExtensions
 
         // Certificate provisioning happens lazily in GatewayServerHostedService as it starts,
         // so AddHttpsGateway stays synchronous (no eager network I/O at registration time).
-        WireDashboardRoute(builder, options);
-
         return options;
     }
 
@@ -102,8 +105,7 @@ public static class HttpsGatewayExtensions
         });
 
         // Resolve the resource's real endpoint after Aspire allocates it, and register it as the
-        // gateway route target. Reading happens at request time in GatewayMiddleware, so populating
-        // the route here (after the gateway has already started) is fine.
+        // gateway route target. GatewayMiddleware reads the route map under the same lock.
         EndpointReference endpoint = builder.GetEndpoint(endpointName);
         builder.ApplicationBuilder.Eventing.Subscribe<ResourceEndpointsAllocatedEvent>(
             builder.Resource,
@@ -111,7 +113,10 @@ public static class HttpsGatewayExtensions
             {
                 if (endpoint.IsAllocated)
                 {
-                    options.Routes[resolvedSubdomain] = endpoint.Url;
+                    lock (options)
+                    {
+                        options.Routes[resolvedSubdomain] = endpoint.Url;
+                    }
                 }
                 else
                 {
@@ -212,48 +217,5 @@ public static class HttpsGatewayExtensions
             });
 
         return builder;
-    }
-
-    private static void WireDashboardRoute(IDistributedApplicationBuilder builder, HttpsGatewayOptions options)
-    {
-        if (!options.ExposeDashboard)
-        {
-            return;
-        }
-
-        // Don't clobber an explicitly configured dashboard route.
-        if (options.Routes.ContainsKey(options.DashboardSubdomain))
-        {
-            return;
-        }
-
-        string? dashboardUrl = ResolveDashboardUrl(builder.Configuration);
-        if (!string.IsNullOrWhiteSpace(dashboardUrl))
-        {
-            options.Routes[options.DashboardSubdomain] = dashboardUrl;
-        }
-    }
-
-    private static string? ResolveDashboardUrl(IConfiguration configuration)
-    {
-        // The AppHost's own URL is the Aspire dashboard frontend; prefer the HTTPS binding.
-        string? urls = configuration["ASPNETCORE_URLS"];
-        if (string.IsNullOrWhiteSpace(urls))
-        {
-            return null;
-        }
-
-        string[] candidates = urls.Split(';', StringSplitOptions.RemoveEmptyEntries | StringSplitOptions.TrimEntries);
-        string? dashboardUrl = Array.Find(candidates, url => url.StartsWith("https://", StringComparison.OrdinalIgnoreCase))
-            ?? (candidates.Length > 0 ? candidates[0] : null);
-
-        // Wildcard bindings accept connections but cannot be used as proxy destinations.
-        if (Uri.TryCreate(dashboardUrl, UriKind.Absolute, out Uri? dashboardUri)
-            && dashboardUri.Host is "0.0.0.0" or "[::]")
-        {
-            return new UriBuilder(dashboardUri) { Host = "localhost" }.Uri.AbsoluteUri;
-        }
-
-        return dashboardUrl;
     }
 }

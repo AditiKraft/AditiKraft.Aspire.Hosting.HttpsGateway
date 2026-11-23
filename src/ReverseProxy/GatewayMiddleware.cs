@@ -12,10 +12,11 @@ internal sealed class GatewayMiddleware
     private readonly IHttpForwarder _forwarder;
     private readonly ILogger<GatewayMiddleware> _logger;
     private readonly HttpsGatewayOptions _options;
+    private readonly GatewayDashboardRouteService _dashboardRoutes;
     private readonly bool _verboseLogging;
 
     // Routes are read live from the options because some are registered after the gateway has
-    // started (resource endpoints resolve via AfterEndpointsAllocatedEvent). Clients are created
+    // started (resource endpoints resolve via ResourceEndpointsAllocatedEvent). Clients are created
     // lazily per destination and cached.
     private readonly ConcurrentDictionary<string, HttpMessageInvoker> _clients =
         new(StringComparer.OrdinalIgnoreCase);
@@ -24,11 +25,13 @@ internal sealed class GatewayMiddleware
         RequestDelegate next,
         IHttpForwarder forwarder,
         ILogger<GatewayMiddleware> logger,
-        HttpsGatewayOptions options)
+        HttpsGatewayOptions options,
+        GatewayDashboardRouteService dashboardRoutes)
     {
         _forwarder = forwarder;
         _logger = logger;
         _options = options;
+        _dashboardRoutes = dashboardRoutes;
         _verboseLogging = options.EnableVerboseProxyLogging;
     }
 
@@ -45,7 +48,7 @@ internal sealed class GatewayMiddleware
                 context.Request.Path);
         }
 
-        if (TryGetPathRoute(host, context.Request.Path, out string pathDestination, out PathString remainingPath))
+        if (TryGetPathRoute(_options, host, context.Request.Path, out string pathDestination, out PathString remainingPath))
         {
             PathString forwardPath = NormalizeForwardPath(remainingPath);
 
@@ -63,7 +66,7 @@ internal sealed class GatewayMiddleware
             return;
         }
 
-        if (TryGetHostRoute(host, out string destination))
+        if (TryGetHostRoute(_options, host, out string destination))
         {
             if (_verboseLogging)
             {
@@ -79,17 +82,17 @@ internal sealed class GatewayMiddleware
         await context.Response.WriteAsync($"No gateway route for host '{host}'.");
     }
 
-    private HttpMessageInvoker ClientFor(string destination) =>
-        _clients.GetOrAdd(destination, static _ => CreateClient());
-
-    private bool TryGetHostRoute(string host, out string destination)
+    internal static bool TryGetHostRoute(HttpsGatewayOptions options, string host, out string destination)
     {
-        foreach ((string subdomain, string routeDestination) in _options.Routes)
+        lock (options)
         {
-            if (string.Equals($"{subdomain}.{_options.Domain}", host, StringComparison.OrdinalIgnoreCase))
+            foreach ((string subdomain, string routeDestination) in options.Routes)
             {
-                destination = routeDestination;
-                return true;
+                if (string.Equals($"{subdomain}.{options.Domain}", host, StringComparison.OrdinalIgnoreCase))
+                {
+                    destination = routeDestination;
+                    return true;
+                }
             }
         }
 
@@ -97,15 +100,22 @@ internal sealed class GatewayMiddleware
         return false;
     }
 
-    private bool TryGetPathRoute(
+    internal static bool TryGetPathRoute(
+        HttpsGatewayOptions options,
         string host,
         PathString requestPath,
         out string destination,
         out PathString remainingPath)
     {
-        string subdomain = SubdomainForHost(host);
+        string subdomain = SubdomainForHost(host, options.Domain);
 
-        if (_options.PathRoutes.TryGetValue(subdomain, out Dictionary<string, string>? routes))
+        Dictionary<string, string>? routes;
+        lock (options)
+        {
+            options.PathRoutes.TryGetValue(subdomain, out routes);
+        }
+
+        if (routes is not null)
         {
             foreach ((string prefix, string routeDestination) in routes.OrderByDescending(route => route.Key.Length))
             {
@@ -124,9 +134,12 @@ internal sealed class GatewayMiddleware
         return false;
     }
 
-    private string SubdomainForHost(string host)
+    private HttpMessageInvoker ClientFor(string destination) =>
+        _clients.GetOrAdd(destination, static _ => CreateClient());
+
+    private static string SubdomainForHost(string host, string domain)
     {
-        string suffix = $".{_options.Domain}";
+        string suffix = $".{domain}";
         return host.EndsWith(suffix, StringComparison.OrdinalIgnoreCase)
             ? host[..^suffix.Length]
             : host;
@@ -138,6 +151,14 @@ internal sealed class GatewayMiddleware
         HttpMessageInvoker client,
         PathString? pathOverride = null)
     {
+        if (_dashboardRoutes.ShouldRejectDashboardLogin(context.Request, destination))
+        {
+            context.Response.StatusCode = StatusCodes.Status400BadRequest;
+            await context.Response.WriteAsync("The AppHost sign-in link requires the Aspire dashboard route.")
+                .ConfigureAwait(false);
+            return;
+        }
+
         PathString originalPath = context.Request.Path;
 
         try

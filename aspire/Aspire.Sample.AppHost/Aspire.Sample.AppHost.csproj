@@ -1,4 +1,4 @@
-<Project Sdk="Aspire.AppHost.Sdk/13.5.3">
+<Project Sdk="Microsoft.NET.Sdk">
 
   <PropertyGroup>
     <OutputType>Exe</OutputType>
@@ -10,9 +10,9 @@
   </PropertyGroup>
 
   <ItemGroup>
-    <ProjectReference Include="..\..\sample\Sample.ApiService\Sample.ApiService.csproj" />
-    <ProjectReference Include="..\..\sample\Sample.Web\Sample.Web.csproj" />
-    <ProjectReference Include="..\..\src\AditiKraft.Aspire.Hosting.HttpsGateway.csproj" IsAspireProjectResource="false" />
+    <PackageReference Include="Aspire.Hosting.AppHost" Version="17.0.0" />
+    <PackageReference Include="Aspire.Hosting.Dotnet" Version="17.0.0" />
+    <ProjectReference Include="..\..\src\AditiKraft.Aspire.Hosting.HttpsGateway.csproj" />
   </ItemGroup>
 
 </Project>
