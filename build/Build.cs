@@ -15,7 +15,6 @@ class Build : FalloutBuild
     [Solution] readonly Solution Solution;
     private readonly string RepositoryUrl = "https://github.com/AditiKraft/AditiKraft.Aspire.Hosting.HttpsGateway";
     AbsolutePath SourceDirectory => RootDirectory / "src";
-    AbsolutePath AspireDirectory => RootDirectory / "aspire";
     AbsolutePath ArtifactsDirectory => RootDirectory / "artifacts";
     AbsolutePath PackageOutputDirectory => ArtifactsDirectory / "Packages";
 
@@ -25,10 +24,7 @@ class Build : FalloutBuild
 
     [Parameter("Force release behavior for tag builds")] readonly bool ReleaseBuild;
     [Parameter("NuGet API Key for publishing templates")] private readonly string NuGetPAT;
-    [Parameter("Package version (default: 0.1.1)")] private readonly string PackageVersion = "0.1.1";
-
-    private AbsolutePath SampleProjectPath =>
-        AspireDirectory / "Aspire.Sample.AppHost" / "Aspire.Sample.AppHost.csproj";
+    [Parameter("Package version (default: 0.2.0)")] private readonly string PackageVersion = "0.2.0";
 
     #region NuGet
 
@@ -55,7 +51,7 @@ class Build : FalloutBuild
         .Executes(() =>
         {
             DotNetTasks.DotNetBuild(s => s
-                .SetProjectFile(SampleProjectPath)
+                .SetProjectFile(Solution)
                 .SetConfiguration(Configuration)
                 .SetProperty("Version", PackageVersion)
                 .SetProperty("AssemblyVersion", PackageVersion)

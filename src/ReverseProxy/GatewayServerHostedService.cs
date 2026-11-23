@@ -13,7 +13,8 @@ namespace AditiKraft.Aspire.Hosting.HttpsGateway.ReverseProxy;
 internal sealed class GatewayServerHostedService(
     HttpsGatewayOptions options,
     IHostEnvironment environment,
-    CertificateManager certManager)
+    CertificateManager certManager,
+    GatewayDashboardRouteService dashboardRoutes)
     : IHostedLifecycleService, IAsyncDisposable
 {
     private static readonly TimeSpan _gatewayShutdownTimeout = TimeSpan.FromSeconds(2);
@@ -82,6 +83,7 @@ internal sealed class GatewayServerHostedService(
             });
 
             builder.Services.AddSingleton(options);
+            builder.Services.AddSingleton(dashboardRoutes);
             builder.Services.AddHttpForwarder();
             builder.Services.Configure<HostOptions>(options => { options.ShutdownTimeout = _gatewayShutdownTimeout; });
             builder.Logging.AddFilter(

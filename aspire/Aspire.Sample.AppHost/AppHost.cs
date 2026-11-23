@@ -1,7 +1,7 @@
 using AditiKraft.Aspire.Hosting.HttpsGateway;
-using Microsoft.Extensions.Configuration;
+using Aspire.Hosting.Dotnet;
 
-var builder = DistributedApplication.CreateBuilder(args);
+IDistributedApplicationBuilder builder = DistributedApplication.CreateBuilder(args);
 
 // Binds the entire "Gateway" config section (appsettings + user secrets) onto the options.
 // Pass a lambda for code-only overrides, e.g. options => options.PathRoutes = …
@@ -9,11 +9,12 @@ HttpsGatewayOptions gateway = builder.AddHttpsGateway(builder.Configuration.GetS
 
 // Subdomain defaults to the resource name; the route target is derived from the resource's
 // own endpoint, so there is no manual port mapping. Override with WithHttpsGatewayUrl(gateway, "backend").
-var apiService = builder.AddProject<Projects.Sample_ApiService>("apiservice")
+IResourceBuilder<DotnetProjectResource> apiService = builder
+    .AddDotnetProject("apiservice", "../../sample/Sample.ApiService/Sample.ApiService.csproj")
     .WithHttpsGatewayUrl(gateway)
     .WithHttpHealthCheck("/health");
 
-builder.AddProject<Projects.Sample_Web>("webfrontend")
+builder.AddDotnetProject("webfrontend", "../../sample/Sample.Web/Sample.Web.csproj")
     .WithExternalHttpEndpoints()
     .WithHttpHealthCheck("/health")
     .WithHttpsGatewayUrl(gateway)

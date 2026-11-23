@@ -11,7 +11,9 @@ HttpsGateway gives every Aspire resource a real `https://<name>.yourdomain.com` 
 | Requirement | Version |
 |---|---|
 | .NET SDK | 10.x |
-| Aspire | 13.5+ |
+| Aspire | 17.0+ |
+
+Run the sample with the [Aspire 17 CLI](https://aspire.dev/get-started/install-cli/).
 
 ## Features
 
@@ -34,8 +36,7 @@ Install the package in your AppHost project:
 dotnet add package AditiKraft.Aspire.Hosting.HttpsGateway
 ```
 
-Add a `Gateway` section to configuration. Non-secret values go in `appsettings.json`;
-the Cloudflare token (and any S3 credentials) belong in **user-secrets**:
+Put the gateway's non-secret settings in the `Gateway` section of `appsettings.json`:
 
 ```json
 // appsettings.json
@@ -51,14 +52,18 @@ the Cloudflare token (and any S3 credentials) belong in **user-secrets**:
 }
 ```
 
-```json
-// user-secrets (dotnet user-secrets set "Gateway:CloudflareApiToken" "...")
-{
-  "Gateway": {
-    "CloudflareApiToken": "cf-token-with-dns-edit"
-  }
-}
+From the AppHost directory, set the Cloudflare token. Aspire prompts for the value with masked input.
+
+```bash
+aspire secret set Gateway:CloudflareApiToken
 ```
+
+Aspire 17 imports existing .NET Development secrets on first use. Use `aspire secret set`
+to rotate imported credentials. [Aspire secrets documentation](https://aspire.dev/reference/cli/commands/aspire-secret/#environment-specific-secrets)
+
+The examples use `AddDotnetProject`. Make sure your AppHost references
+`Aspire.Hosting.Dotnet` at the same version as `Aspire.Hosting.AppHost`.
+Project paths are relative to the AppHost directory.
 
 Wire the gateway into `AppHost.cs`:
 
@@ -68,16 +73,16 @@ using Microsoft.Extensions.Configuration;
 
 var builder = DistributedApplication.CreateBuilder(args);
 
-// Binds the whole "Gateway" section (appsettings + user-secrets) onto the options.
+// Binds the whole "Gateway" section (appsettings + Aspire secrets) onto the options.
 HttpsGatewayOptions gateway = builder.AddHttpsGateway(builder.Configuration.GetSection("Gateway"));
 
 // The subdomain defaults to the resource name and the route target is taken from the
 // resource's own endpoint — so there is no Routes dictionary and no manual port mapping.
-var apiService = builder.AddProject<Projects.ApiService>("apiservice")   // https://apiservice.local.example.com
+var apiService = builder.AddDotnetProject("apiservice", "../ApiService/ApiService.csproj")
     .WithHttpsGatewayUrl(gateway)
     .WithHttpHealthCheck("/health");
 
-builder.AddProject<Projects.Web>("webfrontend")                          // https://webfrontend.local.example.com
+builder.AddDotnetProject("webfrontend", "../Web/Web.csproj")
     .WithExternalHttpEndpoints()
     .WithHttpHealthCheck("/health")
     .WithHttpsGatewayUrl(gateway)
@@ -90,6 +95,9 @@ builder.Build().Run();
 ```
 
 That is enough for the normal case. The Aspire dashboard is also published — open `https://aspire.local.example.com`.
+
+Watch support for path-based .NET projects is pending in Aspire 17. Use the dashboard's
+**Rebuild** action after changing a sample service. [Project migration guide](https://aspire.dev/integrations/dotnet/migrate-dotnet-project-resource/#why-migrate)
 
 ### Localhost and VM network access
 
@@ -114,13 +122,13 @@ When enabled, the same gateway port accepts both localhost and network connectio
 
 Continue using the gateway's configured hostname in the browser so certificate validation and host-based routing work. When that hostname resolves to `127.0.0.1` on the Mac, the forwarded Mac port carries the connection to the Windows gateway.
 
-Dashboard frontend bindings such as `https://0.0.0.0:17285` and `https://[::]:17285` are converted to `localhost` when the automatic dashboard proxy destination is created. The scheme, port, and path are preserved.
+The proxy connects through `localhost` when Aspire reports a wildcard dashboard address such as `0.0.0.0` or `[::]`.
 
 ## What Happens
 
-1. **Registration** — `AddHttpsGateway` binds config, registers the gateway services, and auto-wires the dashboard route from the AppHost's own URL.
-2. **Endpoint resolution** — as each resource's endpoints are allocated, `WithHttpsGatewayUrl` records that resource's real address as the route target. No ports are hardcoded.
-3. **Gateway start** — the gateway hosted service ensures a valid certificate exists (local cache → remote cache → ACME order), then starts Kestrel on the gateway port.
+1. **Registration** — `AddHttpsGateway` binds config and registers the gateway services.
+2. **Gateway start** — the gateway hosted service ensures a valid certificate exists (local cache → remote cache → ACME order), then starts Kestrel on the gateway port.
+3. **Endpoint resolution** — the gateway uses the port Aspire allocates for the dashboard. `WithHttpsGatewayUrl` records each resource's allocated endpoint as its route target.
 4. **Requests** — `https://<subdomain>.<domain>` is matched live against the resolved routes and forwarded to the backend.
 5. **Renewal** — a background service renews the certificate before it expires.
 
@@ -129,7 +137,7 @@ Dashboard frontend bindings such as `https://0.0.0.0:17285` and `https://[::]:17
 The subdomain defaults to the **resource name**. Override it per call when you want a different public name:
 
 ```csharp
-builder.AddProject<Projects.ApiService>("apiservice")
+builder.AddDotnetProject("apiservice", "../ApiService/ApiService.csproj")
     .WithHttpsGatewayUrl(gateway, "backend");   // https://backend.local.example.com
 ```
 
@@ -166,11 +174,11 @@ var builder = DistributedApplication.CreateBuilder(args);
 HttpsGatewayOptions gateway = builder.AddHttpsGateway(builder.Configuration.GetSection("Gateway"));
 
 // Backend API — reached only under the UI's /api path (no subdomain of its own).
-var api = builder.AddProject<Projects.ApiService>("apiservice")
+var api = builder.AddDotnetProject("apiservice", "../ApiService/ApiService.csproj")
     .WithHttpHealthCheck("/health");
 
 // UI at the host root; API mounted under /api on the same origin.
-builder.AddProject<Projects.Web>("webfrontend")
+builder.AddDotnetProject("webfrontend", "../Web/Web.csproj")
     .WithExternalHttpEndpoints()
     .WithHttpHealthCheck("/health")
     .WithHttpsGatewayUrl(gateway)                  // https://webfrontend.local.example.com        → UI ("/")
@@ -211,10 +219,13 @@ then path prefix). It binds from config or the `configure` lambda:
 
 ## Dashboard
 
-The Aspire dashboard is exposed through the gateway automatically. Its route is wired from the AppHost's own URL, so there is nothing to map. Control it with two options:
+The gateway exposes the Aspire dashboard automatically using its allocated frontend endpoint. It prefers HTTPS when Aspire allocates both an HTTP and an HTTPS endpoint.
 
 - `DashboardSubdomain` (default `"aspire"`) — the public subdomain.
-- `ExposeDashboard` (default `true`) — set `false` to keep the dashboard off the gateway.
+- `ExposeDashboard` (default `true`) — controls automatic dashboard routing. Explicit entries in `Routes` take precedence.
+
+Explicit dashboard routes log the base gateway URL after the AppHost starts.
+Generated sign-in links are scoped to the automatically routed Aspire dashboard.
 
 ## Certificate Lifecycle
 
@@ -276,8 +287,7 @@ HttpsGatewayOptions gateway = builder.AddHttpsGateway(
 ### Remote certificate caching (S3 / R2)
 
 Enable a shared certificate cache so teammates and CI reuse the same wildcard cert
-instead of each issuing their own. Bound from the `Gateway:RemoteCertificateStore`
-section (keep the credentials in user-secrets):
+instead of each issuing their own. Put the cache settings in `Gateway:RemoteCertificateStore`:
 
 ```json
 {
@@ -286,13 +296,18 @@ section (keep the credentials in user-secrets):
       "Enabled": true,
       "Endpoint": "https://<account>.r2.cloudflarestorage.com",
       "BucketName": "my-certs",
-      "AccessKeyId": "<key>",
-      "SecretAccessKey": "<secret>",
       "Region": "auto",
       "ForcePathStyle": true
     }
   }
 }
+```
+
+Set the cache credentials from the AppHost directory:
+
+```bash
+aspire secret set Gateway:RemoteCertificateStore:AccessKeyId
+aspire secret set Gateway:RemoteCertificateStore:SecretAccessKey
 ```
 
 ## Options Reference
@@ -346,7 +361,7 @@ Object key resolution: `{prefix}/{domain}/{certFileName}` — e.g. `certificates
 
 - Enabling `ListenOnAllInterfaces` exposes the gateway on the network. Limit inbound access with your firewall and use authentication in the applications exposed through it.
 
-- Do not commit `Gateway:CloudflareApiToken` or S3 credentials — keep them in user-secrets.
+- Store `Gateway:CloudflareApiToken` and S3 credentials in Aspire's secrets store.
 - Use a Cloudflare token scoped to just the zone's DNS edit permission.
 - Prefer `UseStaging = true` while iterating to avoid Let's Encrypt rate limits; flip to `false` for a trusted certificate.
 
